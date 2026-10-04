@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="section">
+    <div class="section-header">
+        <h2>📜 Search History</h2>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <select id="userFilter" onchange="updateFilters()" class="form-control" style="width: 200px;">
+                <option value="">All Users</option>
+                {% for user in users %}
+                <option value="{{ user.user_id }}" {% if user.user_id == selected_user_id %}selected{% endif %}>
+                    {{ user.user_id }} ({{ user.language_code }})
+                </option>
+                {% endfor %}
+            </select>
+            <input type="text" class="search-box" id="searchInput" placeholder="Search domains..." 
+                   value="{{ search or '' }}" onkeyup="debounceSearch(this.value)">
+            <a href="/history/export?user_id={{ selected_user_id or '' }}&search={{ search or '' }}" 
+               class="btn btn-secondary btn-sm">Export CSV</a>
+        </div>
+    </div>
+    <div class="section-content">
+        {% if history %}
+            <div style="overflow-x: auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Domain</th>
+                            <th>Timestamp</th>
+                            <th>Results</th>
+                            <th>Cache</th>
+                            <th>Duration (ms)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in history %}
+                        <tr>
+                            <td><code>{{ item.user_id }}</code></td>
+                            <td>{{ item.domain }}</td>
+                            <td>{{ item.timestamp }}</td>
+                            <td>{{ item.result_count }}</td>
+                            <td>
+                                {% if item.cache_hit %}
+                                    <span class="badge badge-success">Hit</span>
+                                {% else %}
+                                    <span class="badge badge-info">API</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.duration_ms }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}
+                    <a href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if user_id %}&user_id={{ user_id }}{% endif %}" class="page-link">Previous</a>
+                {% endif %}
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}
+                        <span class="page-link active">{{ p }}</span>
+                    {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                        <a href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}{% if user_id %}&user_id={{ user_id }}{% endif %}" class="page-link">{{ p }}</a>
+                    {% elif p == page - 3 or p == page + 3 %}
+                        <span class="page-link" style="color: #999;">...</span>
+                    {% endif %}
+                {% endfor %}
+                {% if page < total_pages %}
+                    <a href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if user_id %}&user_id={{ user_id }}{% endif %}" class="page-link">Next</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M1.414 13.586a2 2 0 000 2.828l5.15 5.15a2 2 0 002.828 0l5.15-5.15a2 2 0 000-2.828l-5.15-5.15a2 2 0 00-2.828 0l-5.15 5.15a2 2 0 000 2.828z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 4.5a3 3 0 110 6 3 3 0 010-6zm-5 9.5a3 3 0 110 6 3 3 0 010-6zm16 0a3 3 0 110 6 3 3 0 010-6z" />
+                </svg>
+                <h3>No Search History</h3>
+                <p>No searches have been performed yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    let searchTimeout;
+    function debounceSearch(value) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            const userId = document.getElementById('userFilter').value;
+            const params = new URLSearchParams();
+            if (value) params.set('search', value);
+            if (userId) params.set('user_id', userId);
+            params.set('page', '1');
+            window.location.href = `?${params.toString()}`;
+        }, 300);
+    }
+    
+    function updateFilters() {
+        const userId = document.getElementById('userFilter').value;
+        const search = document.getElementById('searchInput').value;
+        const params = new URLSearchParams();
+        if (search) params.set('search', search);
+        if (userId) params.set('user_id', userId);
+        params.set('page', '1');
+        window.location.href = `?${params.toString()}`;
+    }
+</script>
+{% endblock %}

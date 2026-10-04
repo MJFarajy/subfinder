@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Users</h3>
+        <div class="stat-value">{{ stats.total_users }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Searches Today</h3>
+        <div class="stat-value">{{ stats.searches_today }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Searches This Week</h3>
+        <div class="stat-value">{{ stats.searches_this_week }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Searches All-Time</h3>
+        <div class="stat-value">{{ stats.searches_all_time }}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Cache Hit Rate</h3>
+        <div class="stat-value success">{{ stats.cache_hit_rate }}%</div>
+    </div>
+    <div class="stat-card">
+        <h3>Bot Uptime</h3>
+        <div class="stat-value">{{ uptime }}</div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h2>⚡ Rate Limiter & Queue Status</h2>
+    </div>
+    <div class="section-content">
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('rate-limiter')">Rate Limiter</button>
+            <button class="tab" onclick="showTab('queue')">Request Queue</button>
+        </div>
+        
+        <div id="rate-limiter" class="tab-content active">
+            <div class="card">
+                <h3>Sliding Window Rate Limiter (60 req/min)</h3>
+                <div class="metric">
+                    <span class="metric-label">Requests in Current Window</span>
+                    <span class="metric-value">{{ rate_status.requests_in_window }} / {{ rate_status.max_requests }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Remaining Requests</span>
+                    <span class="metric-value {% if rate_status.remaining < 10 %}warning{% endif %}">{{ rate_status.remaining }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">API Reported Remaining</span>
+                    <span class="metric-value">{% if rate_status.api_remaining is not none %}{{ rate_status.api_remaining }}{% else %}N/A{% endif %}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">API Reset Time</span>
+                    <span class="metric-value">{% if rate_status.api_reset %}{{ rate_status.api_reset }}{% else %}N/A{% endif %}</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ (rate_status.requests_in_window / rate_status.max_requests * 100) }}%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="queue" class="tab-content">
+            <div class="card">
+                <h3>Request Queue</h3>
+                <div class="metric">
+                    <span class="metric-label">Queued Requests</span>
+                    <span class="metric-value">{{ queue_info.queue_length }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Processing</span>
+                    <span class="metric-value">{{ queue_info.processing }}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Max Concurrent</span>
+                    <span class="metric-value">{{ queue_info.max_concurrent }}</span>
+                </div>
+                {% if queue_info.queued_domains %}
+                    <h4 style="margin: 16px 0 8px;">Queued Domains:</h4>
+                    <ul style="margin-left: 20px;">
+                        {% for domain in queue_info.queued_domains %}
+                        <li>{{ domain }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p style="color: #666; margin-top: 12px;">No requests in queue</p>
+                {% endif %}
+                {% if queue_info.processing_domains %}
+                    <h4 style="margin: 16px 0 8px;">Currently Processing:</h4>
+                    <ul style="margin-left: 20px;">
+                        {% for domain in queue_info.processing_domains %}
+                        <li>{{ domain }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h2>📋 Recent Errors</h2>
+    </div>
+    <div class="section-content">
+        {% if last_error %}
+            <div class="alert alert-error">{{ last_error }}</div>
+        {% else %}
+            <p style="color: #666;">No recent errors</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

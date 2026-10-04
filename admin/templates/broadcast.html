@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="section">
+    <div class="section-header">
+        <h2>📢 Broadcast Message</h2>
+    </div>
+    <div class="section-content">
+        <div class="card" style="max-width: 800px;">
+            <h3>Send Message to All Users</h3>
+            <p style="color: #666; margin-bottom: 20px;">
+                Send a message to all users who have interacted with the bot. 
+                Messages are sent with a 330ms delay between each to respect rate limits.
+            </p>
+            
+            <div class="form-group">
+                <label for="broadcastText">Message (Markdown supported)</label>
+                <textarea id="broadcastText" class="form-control" rows="6" 
+                          placeholder="Enter your message here...&#10;&#10;Supports *bold*, _italic_, `code`, etc."></textarea>
+            </div>
+            
+            <button id="broadcastBtn" class="btn btn-primary" onclick="sendBroadcast()">
+                Send Broadcast
+            </button>
+            
+            <div id="broadcastStatus" style="margin-top: 20px; display: none;">
+                <h4>Progress</h4>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <p id="progressText" style="margin-top: 8px; color: #666;">Preparing...</p>
+                <div id="broadcastLog" style="max-height: 200px; overflow-y: auto; margin-top: 12px; padding: 12px; background: #f8f9fa; border-radius: 6px; font-family: monospace; font-size: 12px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function sendBroadcast() {
+        const text = document.getElementById('broadcastText').value.trim();
+        if (!text) {
+            showToast('Please enter a message', 'error');
+            return;
+        }
+        
+        const btn = document.getElementById('broadcastBtn');
+        const statusDiv = document.getElementById('broadcastStatus');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const broadcastLog = document.getElementById('broadcastLog');
+        
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+        statusDiv.style.display = 'block';
+        broadcastLog.innerHTML = '';
+        progressFill.style.width = '0%';
+        progressText.textContent = 'Starting broadcast...';
+        
+        try {
+            const response = await fetch('/broadcast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+            const data = await response.json();
+            
+            if (!data.success) {
+                showToast(data.message || 'Failed to start broadcast', 'error');
+                return;
+            }
+            
+            showToast('Broadcast started', 'success');
+            
+            // Poll for progress
+            pollProgress();
+        } catch (e) {
+            showToast('Error starting broadcast', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Send Broadcast';
+        }
+    }
+    
+    let pollInterval;
+    function pollProgress() {
+        pollInterval = setInterval(async () => {
+            try {
+                const response = await fetch('/api/broadcast/progress');
+                const data = await response.json();
+                
+                if (data.total > 0) {
+                    const percent = Math.round((data.sent / data.total) * 100);
+                    document.getElementById('progressFill').style.width = percent + '%';
+                    document.getElementById('progressText').textContent = 
+                        `Sent: ${data.sent}/${data.total} (${percent}%) - ${data.failed} failed`;
+                }
+                
+                if (data.logs && data.logs.length > 0) {
+                    const logDiv = document.getElementById('broadcastLog');
+                    data.logs.forEach(log => {
+                        const div = document.createElement('div');
+                        div.textContent = log;
+                        log.style.cssText = 'padding: 2px 8px; font-family: monospace; font-size: 12px;';
+                        logDiv.appendChild(div);
+                    });
+                    logDiv.scrollTop = logDiv.scrollHeight;
+                }
+                
+                if (data.completed) {
+                    clearInterval(pollInterval);
+                    document.getElementById('broadcastBtn').disabled = false;
+                    document.getElementById('broadcastBtn').textContent = 'Send Broadcast';
+                    showToast('Broadcast completed!', 'success');
+                }
+            } catch (e) {
+                console.error('Poll error:', e);
+            }
+        }, 1000);
+    }
+    
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed; bottom: 24px; right: 24px;
+            padding: 16px 24px; border-radius: 8px;
+            color: white; font-weight: 500; z-index: 1000;
+            animation: slideIn 0.3s ease;
+        `;
+        if (type === 'success') toast.style.background = '#40c057';
+        else toast.style.background = '#fa5252';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+</script>
+{% endblock %}

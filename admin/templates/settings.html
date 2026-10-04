@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="section">
+    <div class="section-header">
+        <h2>⚙️ Settings</h2>
+    </div>
+    <div class="section-content">
+        {% if updated %}
+            <div class="alert alert-success">Settings saved successfully! Some changes may require a bot restart.</div>
+        {% endif %}
+        
+        <form method="post" action="/settings" class="card" style="max-width: 600px;">
+            <h3>Bot Settings</h3>
+            <p style="color: #666; margin-bottom: 24px;">
+                Changes to RATE_LIMIT_SECONDS, REQUEST_TIMEOUT, and CACHE_TTL apply immediately.
+                Changes to allowlist require a bot restart.
+            </p>
+            
+            <div class="form-group">
+                <label for="rate_limit_seconds">Per-User Rate Limit (seconds)</label>
+                <input type="number" class="form-control" id="rate_limit_seconds" name="rate_limit_seconds" 
+                       value="{{ rate_limit_seconds }}" min="1" max="300">
+                <small style="color: #666;">Minimum seconds between requests from the same user</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="request_timeout">API Request Timeout (seconds)</label>
+                <input type="number" class="form-control" id="request_timeout" name="request_timeout" 
+                       value="{{ request_timeout }}" min="30" max="300">
+                <small style="color: #666;">Timeout for subdomain API requests (slow domains may need 180+)</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="cache_ttl">Cache TTL (seconds)</label>
+                <input type="number" class="form-control" id="cache_ttl" name="cache_ttl" 
+                       value="{{ cache_ttl }}" min="60" max="86400">
+                <small style="color: #666;">How long to cache subdomain results (600 = 10 minutes)</small>
+            </div>
+            
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="allowlist_enabled" name="allowlist_enabled" 
+                           {% if allowlist_enabled %}checked{% endif %}>
+                    <label for="allowlist_enabled">Enable User Allowlist</label>
+                </div>
+                <small style="color: #666;">When enabled, only users in ALLOWED_USER_IDS can use the bot</small>
+            </div>
+            
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e9ecef;">
+                <h4>Admin Panel Settings</h4>
+                <p style="color: #666; margin-bottom: 16px;">Changes require admin panel restart.</p>
+                
+                <div class="form-group">
+                    <label for="admin_panel_host">Bind Host</label>
+                    <input type="text" class="form-control" id="admin_panel_host" name="admin_panel_host" 
+                           value="{{ settings.admin_panel_host }}" readonly>
+                    <small style="color: #666;">Set via ADMIN_PANEL_HOST env var (default: 127.0.0.1)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="admin_panel_port">Port</label>
+                    <input type="number" class="form-control" id="admin_panel_port" name="admin_panel_port" 
+                           value="{{ settings.admin_panel_port }}" readonly>
+                    <small style="color: #666;">Set via ADMIN_PANEL_PORT env var (default: 8000)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="admin_failed_attempts_limit">Max Failed Login Attempts</label>
+                    <input type="number" class="form-control" id="admin_failed_attempts_limit" name="admin_failed_attempts_limit" 
+                           value="{{ settings.admin_failed_attempts_limit }}" min="1" max="20">
+                </div>
+                
+                <div class="form-group">
+                    <label for="admin_lockout_duration">Lockout Duration (seconds)</label>
+                    <input type="number" class="form-control" id="admin_lockout_duration" name="admin_lockout_duration" 
+                           value="{{ settings.admin_lockout_duration }}" min="60" max="3600">
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+        
+        <div class="card" style="margin-top: 24px; max-width: 600px;">
+            <h3>Admin User Management</h3>
+            <p style="color: #666; margin-bottom: 16px;">
+                Admin commands are restricted to user IDs in ADMIN_USER_IDS. 
+                To enable admin commands, add your Bale numeric ID to ADMIN_USER_IDS in .env.
+            </p>
+            <div class="form-group">
+                <label>Current Admin User IDs</label>
+                <textarea class="form-control" rows="3" readonly>{{ settings.admin_user_ids | join(', ') }}</textarea>
+                <small style="color: #666;">Edit ADMIN_USER_IDS in .env and restart the bot to apply changes.</small>
+            </div>
+            
+            <h4 style="margin-top: 20px;">How to Find Your Bale User ID</h4>
+            <ol style="margin-left: 20px; color: #666;">
+                <li>Send /start to the bot once</li>
+                <li>Your numeric ID will appear in the bot's terminal log</li>
+                <li>Or check data/bot.db (users table) after interacting</li>
+                <li>Add it to ADMIN_USER_IDS in .env (comma-separated)</li>
+                <li>Restart the bot to enable admin commands</li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}

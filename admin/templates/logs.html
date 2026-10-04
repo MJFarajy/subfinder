@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="section">
+    <div class="section-header">
+        <h2>📋 Logs</h2>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <select id="levelFilter" onchange="updateFilters()" class="form-control" style="width: 150px;">
+                <option value="">All Levels</option>
+                <option value="ERROR" {% if selected_level == 'ERROR' %}selected{% endif %}>ERROR</option>
+                <option value="WARNING" {% if selected_level == 'WARNING' %}selected{% endif %}>WARNING</option>
+                <option value="INFO" {% if selected_level == 'INFO' %}selected{% endif %}>INFO</option>
+                <option value="DEBUG" {% if selected_level == 'DEBUG' %}selected{% endif %}>DEBUG</option>
+            </select>
+            <select id="linesFilter" onchange="updateFilters()" class="form-control" style="width: 100px;">
+                <option value="100" {% if lines == 100 %}selected{% endif %}>100</option>
+                <option value="200" {% if lines == 200 %}selected{% endif %}>200</option>
+                <option value="500" {% if lines == 500 %}selected{% endif %}>500</option>
+                <option value="1000" {% if lines == 1000 %}selected{% endif %}>1000</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="refreshLogs()">Refresh</button>
+        </div>
+    </div>
+    <div class="section-content">
+        <div style="max-height: 600px; overflow-y: auto; background: #1e1e1e; border-radius: 8px; padding: 16px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 12px; line-height: 1.6;">
+            {% for log in logs %}
+            <div class="log-line {% if 'ERROR' in log %}log-error{% elif 'WARNING' in log %}log-warning{% elif 'INFO' in log %}log-info{% else %}log-debug{% endif %}">
+                {{ log }}
+            </div>
+            {% else %}
+            <div style="color: #888; text-align: center; padding: 40px;">No logs available</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateFilters() {
+        const level = document.getElementById('levelFilter').value;
+        const lines = document.getElementById('linesFilter').value;
+        const params = new URLSearchParams();
+        if (level) params.set('level', level);
+        if (lines) params.set('lines', lines);
+        window.location.href = `?${params.toString()}`;
+    }
+    
+    function refreshLogs() {
+        const level = document.getElementById('levelFilter').value;
+        const lines = document.getElementById('linesFilter').value;
+        const params = new URLSearchParams();
+        if (level) params.set('level', level);
+        if (lines) params.set('lines', lines);
+        params.set('_', Date.now()); // Cache bust
+        window.location.href = `?${params.toString()}`;
+    }
+    
+    // Auto-refresh every 5 seconds
+    setInterval(refreshLogs, 5000);
+</script>
+{% endblock %}
