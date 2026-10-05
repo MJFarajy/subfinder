@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subdomain Finder Bot - Graphical Abstract</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fafafa;
+        }
+        h1 { color: #1a1a2e; border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+        h2 { color: #2c3e50; margin-top: 40px; border-left: 4px solid #007bff; padding-left: 15px; }
+        .diagram-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .diagram-container pre {
+            display: none;
+        }
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            z-index: 1000;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .mermaid { text-align: center; }
+        .diagram-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        footer {
+            margin-top: 50px;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <button onclick="downloadAllPNG()">Download All as PNG</button>
+        <button onclick="downloadAllSVG()">Download All as SVG</button>
+        <button onclick="toggleCode()">Toggle Code View</button>
+    </div>
+
+    <h1>Subdomain Finder Bot — Graphical Abstract</h1>
+    <p style="color: #666; font-size: 1.1em;">Visual architecture overview of the dual-platform (Bale/Telegram) subdomain discovery bot</p>
+
+    <!-- Diagram 1: System Architecture -->
+    <div class="diagram-container">
+        <div class="diagram-title">1. System Architecture</div>
+        <div class="mermaid">
+flowchart TB
+    subgraph EXT[External Interfaces]
+        direction TB
+        USER[User (Bale / Telegram)]
+        AGNI[AgniOps API app.agniops.in/v1/search]
+    end
+
+    subgraph PLAT[Platform Adapters]
+        direction TB
+        BALE_ADAPTER[Bale Adapter bot/bale_client.py Long Polling (tapi.bale.ai)]
+        TG_ADAPTER[Telegram Adapter bot/main.py + aiogram Long Polling (api.telegram.org)]
+    end
+
+    subgraph CORE[Core Pipeline]
+        direction TB
+        ROUTER[Update Router (bale_handlers.py / handlers.py)]
+        
+        subgraph CMD[Commands]
+            START[/start]
+            HELP[/help]
+            LANG[/language]
+        end
+        
+        PROCESSOR[Domain Processor bot/utils.py normalize_domain()]
+        CACHE[Dual-Layer Cache bot/cache.py]
+        RATE[Rate Limiter bot/rate_limit.py]
+        API_CLIENT[API Client bot/api_client.py]
+    end
+
+    subgraph STORE[Persistent Storage]
+        direction TB
+        LANG_STORE[(user_languages.json Language Preferences)]
+        CACHE_DB[(cache.db SQLite L2 Cache)]
+    end
+
+    CONFIG[Config bot/config.py (.env driven)]
+
+    USER -->|Messages / Callbacks| BALE_ADAPTER
+    USER -->|Messages / Callbacks| TG_ADAPTER
+    
+    BALE_ADAPTER -->|Updates| ROUTER
+    TG_ADAPTER -->|Updates| ROUTER
+    
+    ROUTER -->|Commands| CMD
+    ROUTER -->|Domain Input| PROCESSOR
+    
+    PROCESSOR -->|Normalized Domain| CACHE
+    CACHE -->|Miss| RATE
+    CACHE -->|Hit| FORMAT[Formatter Sorted, Deduped, Counted]
+    
+    RATE -->|Queued Request| API_CLIENT
+    API_CLIENT -->|HTTP GET /v1/search?domain=| AGNI
+    AGNI -->|Plain Text: subdomain per line| API_CLIENT
+    API_CLIENT -->|Raw Results| CACHE
+    CACHE --> FORMAT
+    
+    CACHE -.->|L1 Memory / L2 Disk| CACHE_DB
+    ROUTER -.->|Get/Set Language| LANG_STORE
+    
+    CONFIG -.->|Settings| BALE_ADAPTER
+    CONFIG -.->|Settings| TG_ADAPTER
+    CONFIG -.->|Settings| CACHE
+    CONFIG -.->|Settings| RATE
+    CONFIG -.->|Settings| API_CLIENT
+
+    classDef ext fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef plat fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef core fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef store fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef config fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    
+    class USER,AGNI ext
+    class BALE_ADAPTER,TG_ADAPTER plat
+    class ROUTER,CMD,PROCESSOR,CACHE,RATE,API_CLIENT,FORMAT core
+    class LANG_STORE,CACHE_DB store
+    class CONFIG config
+        </div>
+    </div>
+
+    <!-- Diagram 2: Request Flow Sequence -->
+    <div class="diagram-container">
+        <div class="diagram-title">2. Request Flow Sequence</div>
+        <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant P as Platform (Bale/Telegram)
+    participant R as Router
+    participant N as Normalizer
+    participant C as Cache (L1+L2)
+    participant L as Rate Limiter
+    participant A as API Client
+    participant X as AgniOps API
+
+    U->>P: Sends domain (e.g., "example.com")
+    P->>R: Delivers update
+    R->>N: normalize_domain()
+    N-->>R: Clean domain ("example.com")
+    R->>C: lookup(domain)
+    
+    alt Cache HIT
+        C-->>R: Cached subdomain list
+        R->>P: Formatted response
+        P->>U: Results
+    else Cache MISS
+        C-->>R: Miss
+        R->>L: acquire_slot()
+        L-->>R: Slot granted / queued
+        
+        alt Queued
+            R->>U: "Queued: position N"
+            L->>R: Slot available
+        end
+        
+        R->>A: fetch_subdomains(domain)
+        A->>X: GET /v1/search?domain=example.com
+        X-->>A: Plain text (subdomain per line)
+        A-->>R: Raw subdomain list
+        R->>C: store(domain, results)
+        R->>P: Formatted response
+        P->>U: Results
+    end
+        </div>
+    </div>
+
+    <!-- Diagram 3: Key Components Detail -->
+    <div class="diagram-container">
+        <div class="diagram-title">3. Key Components Detail</div>
+        <div class="mermaid">
+flowchart LR
+    subgraph CACHE_SYS[Dual-Layer Cache]
+        L1[L1: In-Memory Dict instant access]
+        L2[L2: SQLite (data/cache.db) Survives restarts]
+        TTL[TTL: 600s (configurable) Auto-cleanup on startup]
+    end
+
+    subgraph RATE_SYS[Rate Limiting System]
+        SW[Sliding Window 60 req / 60 sec]
+        HQ[Request Queue FIFO + status updates]
+        H429[429 Handler Retry-Aware Backoff]
+    end
+
+    subgraph API_SYS[API Client]
+        RETRY[Exponential Backoff max 3 retries]
+        TIMEOUT[180s timeout configurable]
+        PARSE[Text-List Parser Dedup + Sort]
+    end
+
+    subgraph I18N[Bilingual System]
+        EN[English]
+        FA[Persian (Farsi)]
+        PERSIST[Persistent: user_languages.json]
+        AUTO[Auto-detect: Bale-FA, Telegram-language_code]
+    end
+
+    L1 <--> L2
+    SW --> HQ
+    HQ --> H429
+    RETRY --> TIMEOUT
+    TIMEOUT --> PARSE
+    EN <--> FA
+    FA --> PERSIST
+    EN --> PERSIST
+    AUTO --> FA
+    AUTO --> EN
+        </div>
+    </div>
+
+    <!-- Diagram 4: Deployment Topology -->
+    <div class="diagram-container">
+        <div class="diagram-title">4. Deployment Topology</div>
+        <div class="mermaid">
+flowchart TB
+    subgraph DEV[Development]
+        VENV[venv/]
+        PY[python -m bot.bale_main]
+    end
+
+    subgraph PROD[Production Options]
+        DOCKER[Docker Container]
+        SYSTEMD[systemd Service]
+        TASK[Windows Task Scheduler]
+        FOREVER[run_forever.sh/.bat]
+    end
+
+    subgraph INFRA[Infrastructure]
+        ENV[.env file]
+        DATA[data/]
+        LOGS[stdout/logs]
+    end
+
+    DEV -->|Build| DOCKER
+    DOCKER -->|Mount| ENV
+    DOCKER -->|Volume| DATA
+    DOCKER -->|Stdout| LOGS
+    
+    SYSTEMD -->|ExecStart| PY
+    TASK -->|Action| PY
+    FOREVER -->|Loop| PY
+    
+    PY -->|Reads| ENV
+    PY -->|Writes| DATA
+    PY -->|Logs| LOGS
+        </div>
+    </div>
+
+    <!-- Diagram 5: Design Principles Mindmap -->
+    <div class="diagram-container">
+        <div class="diagram-title">5. Design Principles</div>
+        <div class="mermaid">
+mindmap
+  root((Subdomain Finder Bot))
+    Reliability
+      Graceful Degradation
+      Per-message Tasks
+      Global Error Handler
+      Clean Shutdown
+    Performance
+      Async/Await (httpx/aiogram)
+      Dual-Layer Cache
+      Connection Pooling
+      IPv4 Optimization
+    Observability
+      Structured Logging
+      Token Masking
+      Startup Self-Check
+    Security
+      .env isolation
+      No secrets in logs
+      Optional allowlist
+      Per-user rate limit
+    User Experience
+      Bilingual (EN/FA)
+      Queue transparency
+      File fallback
+      Inline keyboards
+        </div>
+    </div>
+
+    <footer>
+        Generated for <strong>Subdomain Finder Bot</strong> — A robust, bilingual, dual-platform subdomain discovery service.
+    </footer>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: { useMaxWidth: true, htmlLabels: true },
+            sequence: { useMaxWidth: true },
+            mindmap: { useMaxWidth: true }
+        });
+
+        // Download functions
+        async function downloadAllPNG() {
+            const diagrams = document.querySelectorAll('.mermaid');
+            for (let i = 0; i < diagrams.length; i++) {
+                const svg = diagrams[i].querySelector('svg');
+                if (svg) {
+                    await downloadDiagram(svg, `diagram_${i+1}.png`, 'png');
+                }
+            }
+        }
+
+        async function downloadAllSVG() {
+            const diagrams = document.querySelectorAll('.mermaid');
+            for (let i = 0; i < diagrams.length; i++) {
+                const svg = diagrams[i].querySelector('svg');
+                if (svg) {
+                    await downloadDiagram(svg, `diagram_${i+1}.svg`, 'svg');
+                }
+            }
+        }
+
+        async function downloadDiagram(svg, filename, format) {
+            try {
+                if (format === 'svg') {
+                    const svgData = new XMLSerializer().serializeToString(svg);
+                    const blob = new Blob([svgData], {type: 'image/svg+xml'});
+                    downloadBlob(blob, filename);
+                } else {
+                    // Convert SVG to PNG using canvas
+                    const svgData = new XMLSerializer().serializeToString(svg);
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const img = new Image();
+                    
+                    img.onload = function() {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        ctx.drawImage(img, 0, 0);
+                        canvas.toBlob(blob => downloadBlob(blob, filename), 'image/png');
+                    };
+                    
+                    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                }
+            } catch (e) {
+                console.error('Download failed:', e);
+                alert('Download failed. Try right-clicking the diagram and "Save Image As..."');
+            }
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function toggleCode() {
+            const pres = document.querySelectorAll('.diagram-container pre');
+            pres.forEach(pre => {
+                pre.style.display = pre.style.display === 'none' ? 'block' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>
