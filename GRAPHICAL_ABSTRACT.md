@@ -1,5 +1,7 @@
 # Subdomain Finder Bot — Graphical Abstract
 
+![Graphical Abstract](graphical_abstract/graphical_abstract.png)
+
 > A visual architecture overview of the dual-platform (Bale/Telegram) subdomain discovery bot with persistent caching, rate limiting, and bilingual support.
 
 ---
