@@ -6,34 +6,36 @@
 
 ## 🏗️ System Architecture
 
+![System Architecture](diagrams/01_system_architecture.jpg)
+
 ```mermaid
 flowchart TB
     %% ===== EXTERNAL LAYER =====
     subgraph EXT[🌐 External Interfaces]
         direction TB
-        USER[👤 User\n(Bale / Telegram)]
+        USER["👤 User\n(Bale / Telegram)"]
         AGNI[🔗 AgniOps API\napp.agniops.in/v1/search]
     end
 
     %% ===== PLATFORM LAYER =====
     subgraph PLAT[🤖 Platform Adapters]
         direction TB
-        BALE_ADAPTER[📱 Bale Adapter\nbot/bale_client.py\nLong Polling (tapi.bale.ai)]
-        TG_ADAPTER[📱 Telegram Adapter\nbot/main.py + aiogram\nLong Polling (api.telegram.org)]
+        BALE_ADAPTER["📱 Bale Adapter\nbot/bale_client.py\nLong Polling (tapi.bale.ai)"]
+        TG_ADAPTER["📱 Telegram Adapter\nbot/main.py + aiogram\nLong Polling (api.telegram.org)"]
     end
 
     %% ===== CORE LAYER =====
     subgraph CORE[⚙️ Core Pipeline]
         direction TB
-        ROUTER[🎯 Update Router\n(bale_handlers.py / handlers.py)]
+        ROUTER["🎯 Update Router\n(bale_handlers.py / handlers.py)"]
         
         subgraph CMD[📋 Commands]
-            START[/start]
-            HELP[/help]
-            LANG[/language]
+            START[/start/]
+            HELP[/help/]
+            LANG[/language/]
         end
         
-        PROCESSOR[🔍 Domain Processor\nbot/utils.py\nnormalize_domain()]
+        PROCESSOR["🔍 Domain Processor\nbot/utils.py\nnormalize_domain()"]
         CACHE[💾 Dual-Layer Cache\nbot/cache.py]
         RATE[⏱️ Rate Limiter\nbot/rate_limit.py]
         API_CLIENT[🌐 API Client\nbot/api_client.py]
@@ -47,7 +49,7 @@ flowchart TB
     end
 
     %% ===== CONFIG =====
-    CONFIG[⚙️ Config\nbot/config.py\n(.env driven)]
+    CONFIG["⚙️ Config\nbot/config.py\n(.env driven)"]
 
     %% ===== CONNECTIONS =====
     USER -->|Messages / Callbacks| BALE_ADAPTER
@@ -96,6 +98,8 @@ flowchart TB
 
 ## 🔄 Request Flow Sequence
 
+![Request Flow Sequence](diagrams/02_request_flow_sequence.jpg)
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -142,12 +146,14 @@ sequenceDiagram
 
 ## 🧩 Key Components Detail
 
+![Key Components Detail](diagrams/03_key_components_detail.jpg)
+
 ```mermaid
 flowchart LR
     subgraph CACHE_SYS[💾 Dual-Layer Cache]
         L1[L1: In-Memory Dict\n~instant access]
-        L2[L2: SQLite (data/cache.db)\nSurvives restarts]
-        TTL[TTL: 600s (configurable)\nAuto-cleanup on startup]
+        L2["L2: SQLite (data/cache.db)\nSurvives restarts"]
+        TTL["TTL: 600s (configurable)\nAuto-cleanup on startup"]
     end
 
     subgraph RATE_SYS[⏱️ Rate Limiting System]
@@ -164,7 +170,7 @@ flowchart LR
 
     subgraph I18N[🌍 Bilingual System]
         EN[English]
-        FA[Persian (Farsi)]
+        FA["Persian (Farsi)"]
         PERSIST[Persistent: user_languages.json]
         AUTO[Auto-detect:\nBale→FA, Telegram→language_code]
     end
@@ -204,6 +210,8 @@ flowchart LR
 
 ## 🚀 Deployment Topology
 
+![Deployment Topology](diagrams/04_deployment_topology.jpg)
+
 ```mermaid
 flowchart TB
     subgraph DEV[Development]
@@ -241,6 +249,8 @@ flowchart TB
 ---
 
 ## 🎯 Design Principles
+
+![Design Principles Mindmap](diagrams/05_design_principles_mindmap.jpg)
 
 ```mermaid
 mindmap
